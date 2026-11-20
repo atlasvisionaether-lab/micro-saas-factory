@@ -1,0 +1,5 @@
+# Runtime state the tools write (portfolio, plans, verdicts, logs) stays local.
+/trader/
+/logs/
+__pycache__/
+*.pyc

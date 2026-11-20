@@ -1,0 +1,12 @@
+{
+  "replays": 10000,
+  "seed": 19,
+  "models": ["bar_bootstrap", "block_bootstrap", "gbm", "regime_shock"],
+  "block_size_bars": 6,
+  "lookback_sessions": 60,
+  "breakeven_band_r": 0.1,
+  "commission_per_share_usd": 0.0,
+  "slippage_bps": 5,
+  "confidence_level": 0.95,
+  "regime_shock": { "vol_multiplier": 2.0, "gap_prob": 0.02, "gap_size_r": 1.5 }
+}
