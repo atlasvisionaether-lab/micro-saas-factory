@@ -11,11 +11,14 @@ trading/
 ├── config/
 │   ├── trader.config.example.json   risk + bütçe sınırları (upstream formatı)
 │   ├── desk.example.json            masa eşikleri (karar koşulları, tarayıcı, veri kapısı)
+│   ├── runner.example.json          zamanlanmış işler, sağlık eşikleri, alarm komutu
 │   └── sim.example.json             iterasyon, seed, başabaş bandı, maliyetler, modeller
 ├── sim/                     çoklu model Monte Carlo motoru (numpy)
 ├── desk/                    çoklu ajan masası: tartışma protokolü + AL/BEKLE/GEÇ
 │   └── agents/              scanner, news, entry_exit, skeptic
-├── tests/sim/, tests/desk/  offline testler
+├── runner/                  zamanlayıcı: tick / health / status
+│   └── deploy/              systemd user birimleri + install.sh
+├── tests/sim/, tests/desk/, tests/runner/  offline testler
 ├── vendor/
 │   ├── VENDOR.md                    kaynak, commit, güvenlik notları
 │   ├── day-trader-skill/            11 modül, değiştirilmemiş
@@ -32,6 +35,7 @@ pip install -r requirements.txt
 mkdir -p trader && cp config/trader.config.example.json trader/config.json
 cp config/sim.example.json trader/sim.json
 cp config/desk.example.json trader/desk.json
+cp config/runner.example.json trader/runner.json
 ```
 
 Araçlar `trader/` klasörünü çalıştırıldıkları dizine göre okur; komutları
@@ -118,10 +122,59 @@ Her çalıştırma `logs/desk/<tarih>/<run id>/` altına `transcript.jsonl`, `de
 `sim.json`, `sim.md`, `report.md` yazar ve `logs/desk/index.jsonl`'a bir satır ekler.
 Çıkış kodu: 0 masa çalıştı (karar ne olursa), 2 girdi/veri hatası.
 
+## Zamanlayıcı (`runner/`, Linux)
+
+systemd her 5 dakikada `python3 -m runner tick` çalıştırır. Runner hangi işin
+zamanı geldiğine NYSE takvimine (New York saati, makinenin saat diliminden
+bağımsız) ve kendi durum dosyasına bakarak karar verir.
+
+| Pencere | Ne zaman |
+|---|---|
+| `session` | İşlem günleri, `start`–`end` arası (erken kapanışta kapanışla sınırlı), her `every_min` dakikada |
+| `trading_day_at` | İşlem günleri, `at` saatinden sonra günde bir kez |
+| `daily_at` | Her gün, `at` saatinden sonra günde bir kez |
+
+- `desk` işi: `trader/plan.json` ve `trader/plans/*.json` içinden **tarihi bugün olan** her plan için masayı çalıştırır.
+- `command` işi: argv listesi (shell yok); `{python}` ve `{today}` yer tutucuları.
+- Her iş ayrı süreçte, zaman aşımıyla çalışır. Çıkış 2 (girdi hatası) tekrar denenmez; diğer hatalar 2 s, 4 s… bekleyerek yeniden denenir.
+- Üst üste binen tick'ler kilit dosyasıyla atlanır. Durum dosyaları atomik yazılır.
+- Günde bir kez çalışan işler `max_attempts_per_day` başarısızlıktan sonra o gün için bırakılır.
+
+**Loglar ve izleme** (`logs/runner/`):
+`runner.jsonl` (JSON satırları, 5 MB × 5 döngü), `heartbeat.json` (her tick),
+`state.json` (iş başına son deneme / başarı / ardışık hata). Masa çıktıları `logs/desk/`.
+
+`python3 -m runner health` heartbeat 15 dakikadan eskiyse, bir iş üst üste 3 kez
+başarısızsa veya takvim yılı bilinmiyorsa çıkış 1 verir ve `health.alert_argv`
+komutunu (ör. `["notify-send", "Trading"]`) mesajla çalıştırır.
+
+```bash
+python3 -m runner tick --dry-run          # neyin zamanı geldiğini göster, hiçbir şey çalıştırma
+python3 -m runner tick --now "2026-10-19 10:15" --dry-run
+python3 -m runner health
+python3 -m runner status                  # heartbeat, iş durumu, son masa kararları
+```
+
+### Kurulum (systemd user birimleri, root gerekmez)
+
+```bash
+cd trading
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+mkdir -p trader && cp config/runner.example.json trader/runner.json   # işleri düzenleyin
+runner/deploy/install.sh                  # birimleri yazar, kuru tick dener, timer'ları açar
+loginctl enable-linger "$USER"            # oturum kapalıyken de çalışsın (7/24)
+systemctl --user list-timers 'trading-*'
+journalctl --user -u trading-runner -f
+runner/deploy/install.sh --uninstall      # kaldırır; loglar ve trader/ kalır
+```
+
+> Not: Vendor NYSE tatil listesi 2026–2027'yi kapsar. Sonrası için runner ve
+> `health` uyarı verir; tatiller o zamana kadar güncellenmelidir.
+
 ## Test
 
 ```bash
-python3 -m unittest discover -s tests -t .                                  # sim + desk (54 test)
+python3 -m unittest discover -s tests -t .                                  # sim + desk + runner (73 test)
 cd vendor/day-trader-skill && python3 -I -m unittest discover -s tests      # upstream (315 test)
 ```
 
@@ -131,5 +184,6 @@ cd vendor/day-trader-skill && python3 -I -m unittest discover -s tests      # up
 2. ✅ Upstream vendor + offline testler (315/315)
 3. ✅ `sim/` motoru: 4 model, Kazanç/Başabaş/Kayıp %, expectancy, güven aralıkları, seri riski
 4. ✅ `desk/` çoklu ajan masası (Tarayıcı, Haberci, Giriş-Çıkış, Şüpheci, Karar)
-5. ⏳ `runner/` zamanlayıcı (systemd timer), uygulama logu, sağlık kontrolü, isteğe bağlı Claude anlatım katmanı
-6. ⏳ `.claude/skills/`, `.claude/agents/` ve izin kısıtları
+5. ✅ `runner/` zamanlayıcı (systemd timer), JSON log, heartbeat, sağlık kontrolü ve alarm
+6. ⏳ İsteğe bağlı Claude anlatım katmanı (karara dokunmaz)
+7. ⏳ `.claude/skills/`, `.claude/agents/` ve izin kısıtları
