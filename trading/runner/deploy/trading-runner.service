@@ -1,0 +1,17 @@
+# One tick of the trading desk runner. Started by trading-runner.timer.
+# Installed by runner/deploy/install.sh, which fills in @TRADING_DIR@ and @PYTHON@.
+[Unit]
+Description=Trading desk runner tick (analysis and simulation only, no orders)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=@TRADING_DIR@
+ExecStart=@PYTHON@ -m runner tick
+# a tick must finish before the next one starts (timer: every 5 min)
+TimeoutStartSec=280
+Nice=10
+NoNewPrivileges=yes
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1

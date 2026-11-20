@@ -1,0 +1,2 @@
+# Simulation engine (trading/sim). The vendored skills need only the standard library.
+numpy>=2.0,<3

@@ -1,0 +1,44 @@
+{
+  "logs": "logs",
+  "log_max_bytes": 5000000,
+  "log_backups": 5,
+  "jobs": [
+    {
+      "name": "desk",
+      "kind": "desk",
+      "window": "session",
+      "start": "09:45",
+      "end": "15:30",
+      "every_min": 15,
+      "plans": ["trader/plan.json", "trader/plans/*.json"],
+      "timeout_s": 180,
+      "retries": 1
+    },
+    {
+      "name": "news",
+      "kind": "command",
+      "window": "session",
+      "start": "09:00",
+      "end": "16:00",
+      "every_min": 30,
+      "argv": ["{python}", "vendor/day-trader-skill/trader-news/news.py", "--no-sec", "--no-moves"],
+      "timeout_s": 120,
+      "retries": 1
+    },
+    {
+      "name": "pelosi",
+      "kind": "command",
+      "window": "trading_day_at",
+      "at": "18:30",
+      "argv": ["{python}", "vendor/day-trader-skill/trader-pelosi/ptr.py", "index", "--member", "pelosi"],
+      "timeout_s": 300,
+      "retries": 2,
+      "enabled": false
+    }
+  ],
+  "health": {
+    "max_heartbeat_age_min": 15,
+    "max_consecutive_failures": 3,
+    "alert_argv": null
+  }
+}

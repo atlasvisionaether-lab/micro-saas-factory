@@ -1,0 +1,12 @@
+# Checks that ticks keep coming and jobs keep succeeding. Exits 1 and runs the
+# configured alert command (health.alert_argv) when not.
+[Unit]
+Description=Trading desk runner health check
+
+[Service]
+Type=oneshot
+WorkingDirectory=@TRADING_DIR@
+ExecStart=@PYTHON@ -m runner health
+TimeoutStartSec=60
+NoNewPrivileges=yes
+UMask=0077

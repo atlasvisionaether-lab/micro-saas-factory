@@ -1,0 +1,14 @@
+{
+  "news_hours": 12,
+  "scanner": { "rvol_high": 1.5, "rvol_low": 0.7, "range_high": 1.5, "gap_pct_high": 2.0 },
+  "entry_exit": { "min_stop_atr": 1.0, "max_chase_r": 0.5 },
+  "data_gate": { "max_bar_age_min": 30, "min_pool_sessions": 30 },
+  "decision": {
+    "base_models": ["bar_bootstrap", "block_bootstrap"],
+    "min_edge_r": 0.0,
+    "stress_floor_r": -0.15,
+    "min_history_trades": 20,
+    "max_unresolved_warn": 1,
+    "min_stance_score": 0.0
+  }
+}
