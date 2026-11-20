@@ -82,7 +82,7 @@ def render(doc):
             s["gap_stops"]))
     L.append("")
     sq0 = next(iter(doc["models"].values()))["sequence"]
-    L.append("### Seri riski (%d işlem, işlem başına sermayenin %%%g'i riskte, %s seri)" % (
+    L.append("### Seri riski (%d işlem, işlem başına risk: sermayenin %%%g kadarı, %s seri)" % (
         sq0["n_trades"], 100 * sq0["risk_frac"], "{:,}".format(sq0["n_sequences"])))
     L.append("")
     L.append("| Model | Seri sonu getiri p5 / medyan / p95 | Zararla biten seri | Maks. düşüş medyan / p95 | "
